@@ -59,3 +59,55 @@ def get_dealers_from_cf(url, **kwargs):
     return results
 
 
+# Create a get_dealer_reviews_from_cf method to get reviews by dealer id from a cloud function
+def get_dealer_reviews_by_id_from_cf(url, dealerId):
+    results = []
+    json_result = get_request(url, dealerId=dealerId)
+    if json_result:
+        reviews = json_result['entries']
+        for review in reviews:
+            try:
+                review_obj = models.DealerReview(name = review["name"], 
+                dealership = review["dealership"], review = review["review"], purchase=review["purchase"],
+                purchase_date = review["purchase_date"], car_make = review['car_make'],
+                car_model = review['car_model'], car_year= review['car_year'], sentiment= "none")
+            except:
+                review_obj = models.DealerReview(name = review["name"], 
+                dealership = review["dealership"], review = review["review"], purchase=review["purchase"],
+                purchase_date = 'none', car_make = 'none',
+                car_model = 'none', car_year= 'none', sentiment= "none")
+                
+            review_obj.sentiment = analyze_review_sentiments(review_obj.review)
+            print(review_obj.sentiment)
+                    
+            results.append(review_obj)
+
+    return results
+# - Call get_request() with specified arguments
+# - Parse JSON results into a DealerView object list
+
+
+# Create an `analyze_review_sentiments` method to call Watson NLU and analyze text
+def analyze_review_sentiments(text):
+    api_key = "l5-o9bv1zCA2FB9aGhk4KANLd5xkRLC6maziRIIpdErW"
+    url = "https://api.au-syd.natural-language-understanding.watson.cloud.ibm.com/instances/cb369335-0b24-4043-aa9e-6ea3252a28a9"
+    texttoanalyze= text
+    version = '2020-08-01'
+    authenticator = IAMAuthenticator(api_key)
+    natural_language_understanding = NaturalLanguageUnderstandingV1(
+    version='2020-08-01',
+    authenticator=authenticator
+    )
+    natural_language_understanding.set_service_url(url)
+    response = natural_language_understanding.analyze(
+        text=text,
+        features= Features(sentiment= SentimentOptions())
+    ).get_result()
+    print(json.dumps(response))
+    sentiment_score = str(response["sentiment"]["document"]["score"])
+    sentiment_label = response["sentiment"]["document"]["label"]
+    print(sentiment_score)
+    print(sentiment_label)
+    sentimentresult = sentiment_label
+    
+    return sentimentresult
